@@ -1,378 +1,154 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-<title>Flow Field — Gestures (Sharp Geometry + Snap Explosion)</title>
-<style>
-  html,body{margin:0;height:100%;background:#0b0d10;color:#cfd3dc;font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;touch-action:none;}
-  canvas{display:block;width:100vw;height:100vh}
-  .hint{
-    position:fixed;left:50%;bottom:12px;transform:translateX(-50%);
-    padding:.6rem .9rem;border-radius:999px;background:rgba(18,22,28,.55);backdrop-filter:blur(8px);
-    box-shadow:0 6px 30px rgba(0,0,0,.35);font-size:.9rem;letter-spacing:.2px;user-select:none;opacity:.9
-  }
-  @media (min-width:900px){.hint{bottom:18px}}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Flow Field — Gestures Only</title>
+  <meta name="theme-color" content="#070b11" />
+  <style>
+    :root{--bg:#070b11;--text:#e8eef5}
+    *{box-sizing:border-box;}
+    html,body{height:100%}
+    body{margin:0;background:radial-gradient(1200px 900px at 70% 10%, #0d1320 0%, #070b11 70%);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial;overscroll-behavior:none;touch-action:none}
+    #c{position:fixed;inset:0;display:block}
+    #grain{position:fixed;inset:0;pointer-events:none;opacity:.06;mix-blend-mode:overlay}
+    .hint{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);font-size:14px;letter-spacing:.2px;color:#a9b4c4;background:#0d1421cc;border:1px solid #1b2636;border-radius:16px;padding:10px 12px;backdrop-filter:blur(8px);box-shadow:0 12px 30px rgba(0,0,0,.35);opacity:.95;transition:opacity .6s ease}
+    .hidden{opacity:0}
+  </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div class="hint" id="hint">1 палец — расслабленно · 2 пальца — сбор (удержи ≥10с → взрыв) · 3+ пальцев — фигуры</div>
+  <canvas id="c"></canvas>
+  <canvas id="grain"></canvas>
+  <div class="hint" id="hint">1 палец — мягко веди линии · 2 пальца — собрать всё (удержи ≥10с, отпусти → взрыв) · 3+ пальцев — геометрические фигуры</div>
 
 <script>
-(()=> {
-  const canvas = document.getElementById('c');
-  const ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
-  // ---------- ТОНКАЯ НАСТРОЙКА ----------
-  const CFG = {
-    PARTICLES: 2200,            // автоскейлится ниже
-    LINE_WIDTH: 1.6,            // базовая толщина
-    FIELD_SCALE: 0.0014,        // «ветер» для фонового движения
-    DRAG: 0.06,                 // трение
-    ZEN_PULL: 0.08,             // сила притяжения одного пальца
-    ALL_PULL: 0.30,             // сила «собрать всё» (2 пальца)
-    POLY_PULL: 0.22,            // сила к рёбрам многоугольника (3+ пальцев)
-    EDGE_SNAP: 0.45,            // насколько сильно защёлкивать к рёбрам
-    GLOW: 0.22,                 // свечение линий при рисовании
-    BACK_FADE: 0.085,           // «шлейф» (0..1): больше — быстрее исчезает
-    // Взрыв:
-    EXP_MIN_HOLD: 10000,        // 10 секунд
-    EXP_BASE: 12.0,             // основной импульс
-    EXP_JITTER: 0.45,           // разброс направления
-    EXP_SHOCK: 6.0,             // сила ударной волны
-    EXP_DECAY: 0.13,            // насколько быстро затухает
-  };
+// ---------- utils ----------
+const rand=(a=1,b=0)=>a+(b-a)*Math.random();
+const clamp=(x,min,max)=>Math.min(max,Math.max(min,x));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const TAU=Math.PI*2, RAD=180/Math.PI;
+const hsla=(h,s,l,a=1)=>`hsla(${h},${s}%,${l}%,${a})`;
 
-  // ---------- РАЗМЕР/ЧЁТКОСТЬ ----------
-  let DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
-  function resize(){
-    DPR = Math.max(1, Math.min(window.devicePixelRatio || 1, 3));
-    const { innerWidth:w, innerHeight:h } = window;
-    canvas.width  = Math.floor(w * DPR);
-    canvas.height = Math.floor(h * DPR);
-    canvas.style.width  = w+'px';
-    canvas.style.height = h+'px';
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    ctx.imageSmoothingEnabled = false; // максимально резкие линии
+// ---------- noise ----------
+class SimplexNoise{constructor(r=Math){this.p=new Uint8Array(256);for(let i=0;i<256;i++)this.p[i]=i;for(let i=255;i>0;i--){const n=r.random()*(i+1)|0;const q=this.p[i];this.p[i]=this.p[n];this.p[n]=q}this.perm=new Uint8Array(512);for(let i=0;i<512;i++)this.perm[i]=this.p[i&255];}
+  noise2D(xin,yin){const g=new Float32Array([1,1,-1,1,1,-1,-1,-1,1,0,-1,0,1,0,-1,0,0,1,0,-1,0,1,0,-1]);const F2=0.5*(Math.sqrt(3)-1),G2=(3-Math.sqrt(3))/6;let n0=0,n1=0,n2=0;const s=(xin+yin)*F2;const i=Math.floor(xin+s),j=Math.floor(yin+s);const t=(i+j)*G2;const X0=i-t,Y0=j-t;const x0=xin-X0,y0=yin-Y0;let i1,j1;if(x0>y0){i1=1;j1=0}else{i1=0;j1=1}const x1=x0-i1+G2,y1=y0-j1+G2,x2=x0-1+2*G2,y2=y0-1+2*G2;const ii=i&255,jj=j&255;const gi0=this.perm[ii+this.perm[jj]]%12*2,gi1=this.perm[ii+i1+this.perm[jj+j1]]%12*2,gi2=this.perm[ii+1+this.perm[jj+1]]%12*2;let t0=0.5-x0*x0-y0*y0;if(t0>=0){t0*=t0;n0=t0*t0*(g[gi0]*x0+g[gi0+1]*y0)}let t1=0.5-x1*x1-y1*y1;if(t1>=0){t1*=t1;n1=t1*t1*(g[gi1]*x1+g[gi1+1]*y1)}let t2=0.5-x2*x2-y2*y2;if(t2>=0){t2*=t2;n2=t2*t2*(g[gi2]*x2+g[gi2+1]*y2)}return 70*(n0+n1+n2)} }
+
+// ---------- canvas ----------
+const canvas=document.getElementById('c');
+const ctx=canvas.getContext('2d',{alpha:false});
+const grainCanvas=document.getElementById('grain');
+const gctx=grainCanvas.getContext('2d');
+let DPR=Math.min(2,window.devicePixelRatio||1);
+function resize(){const W=Math.floor(innerWidth*DPR),H=Math.floor(innerHeight*DPR);canvas.width=W;canvas.height=H;canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';ctx.setTransform(1,0,0,1,0,0);ctx.scale(DPR,DPR);grainCanvas.width=W;grainCanvas.height=H;grainCanvas.style.width=innerWidth+'px';grainCanvas.style.height=innerHeight+'px';drawGrain();}
+addEventListener('resize',resize);resize();
+function drawGrain(){const img=gctx.createImageData(grainCanvas.width,grainCanvas.height);for(let i=0;i<img.data.length;i+=4){const v=200+(Math.random()*55)|0;img.data[i]=img.data[i+1]=img.data[i+2]=v;img.data[i+3]=255;}gctx.putImageData(img,0,0)}
+
+// ---------- simulation ----------
+const noise=new SimplexNoise();
+const isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+let particles=[]; const params={count:isMobile?3000:5500, speed:2.0, thick:1.15, scale:480, hue:210};
+let frame=0, seed=Math.random()*1000;
+
+class Particle{constructor(){this.reset(true);}reset(rnd=false){this.x=rnd?rand(0,innerWidth):innerWidth/2;this.y=rnd?rand(0,innerHeight):innerHeight/2;this.vx=0;this.vy=0;this.life=rand(140,420);this.age=0;this.h=rand(0,360);}step(){this.age++; if(this.age>this.life) this.reset(true);
+  const n=noise.noise2D((this.x+seed)/params.scale,(this.y-seed)/params.scale); const a=n*TAU + frame*0.002;
+  let ax=Math.cos(a)*0.16, ay=Math.sin(a)*0.16; // base flow
+
+  // gesture forces
+  applyForces(this, ax, ay);
+
+  const damp=0.90; this.vx=(this.vx+ax)*damp; this.vy=(this.vy+ay)*damp;
+  const spd=params.speed*0.82; this.x+=this.vx*spd; this.y+=this.vy*spd;
+  if(this.x<0)this.x+=innerWidth; if(this.x>innerWidth)this.x-=innerWidth; if(this.y<0)this.y+=innerHeight; if(this.y>innerHeight)this.y-=innerHeight;}}
+
+function rebuild(){const t=params.count|0; if(t>particles.length){for(let i=particles.length;i<t;i++)particles.push(new Particle());}else particles.length=t;}
+rebuild();
+
+// ---------- gestures ----------
+const touches=new Map(); // id -> {x,y,t}
+let gestureStartTime=0; let heldTwoFinger=false; let explosionArmed=false; let lastMode='';
+let explosionUntil=0; let explosionColorBoost=0; let explosionPoint={x:0,y:0};
+
+function updateModeFeedback(mode){ if(mode!==lastMode){ if(navigator.vibrate) navigator.vibrate(12); lastMode=mode; }}
+
+function centroid(points){ let sx=0,sy=0; for(const p of points){sx+=p.x; sy+=p.y;} return {x:sx/points.length, y:sy/points.length}; }
+
+function polySort(points){ const c=centroid(points); return [...points].sort((a,b)=>Math.atan2(a.y-c.y,a.x-c.x)-Math.atan2(b.y-c.y,b.x-c.x)); }
+
+function applyForces(p, ax, ay){ const now=performance.now(); const pts=[...touches.values()]; const k=pts.length;
+  // explosion force override
+  if(now<explosionUntil){ const dx=p.x-explosionPoint.x, dy=p.y-explosionPoint.y; const d=Math.hypot(dx,dy)||1; const f=3.5*Math.exp(-d/260); p.vx+= (dx/d)*f + (rand(-0.5,0.5)); p.vy+= (dy/d)*f + (rand(-0.5,0.5)); return; }
+
+  if(k===0){ return; }
+  if(k===1){ // one finger: calm attraction, local falloff
+    updateModeFeedback('one');
+    const t=pts[0]; const dx=t.x-p.x, dy=t.y-p.y; const d=Math.hypot(dx,dy)||1; const f=1.1*Math.pow(1-Math.min(1,d/180),2.2); p.vx+= (dx/d)*f; p.vy+= (dy/d)*f; return; }
+  if(k===2){ // two fingers: gather all to mid
+    updateModeFeedback('two');
+    const mid=centroid(pts); const dx=mid.x-p.x, dy=mid.y-p.y; const d=Math.hypot(dx,dy)||1; const f=1.8; p.vx+= (dx/d)*f; p.vy+= (dy/d)*f; return; }
+  // 3+ fingers: geometric figure
+  updateModeFeedback('poly');
+  const ordered=polySort(pts); const c=centroid(ordered); // pull towards nearest vertex and edge
+  let nearest=ordered[0]; let best=Infinity; for(const v of ordered){ const dd=(v.x-p.x)**2+(v.y-p.y)**2; if(dd<best){best=dd; nearest=v;} }
+  // attraction to nearest vertex
+  let dx=nearest.x-p.x, dy=nearest.y-p.y; let d=Math.hypot(dx,dy)||1; let f=1.6*Math.pow(1-Math.min(1,d/220),2.0); p.vx+= (dx/d)*f; p.vy+= (dy/d)*f;
+  // and slight pull towards polygon center for cohesion
+  dx=c.x-p.x; dy=c.y-p.y; d=Math.hypot(dx,dy)||1; f=0.6; p.vx+= (dx/d)*f; p.vy+= (dy/d)*f;
+}
+
+// timers for 2-finger hold
+function checkTwoFingerHold(){ const now=performance.now(); if(touches.size===2){ if(!heldTwoFinger){ heldTwoFinger=true; gestureStartTime=now; explosionArmed=false; } else {
+    const dur=now-gestureStartTime; if(dur>=10000){ explosionArmed=true; } }
+  } else { heldTwoFinger=false; }}
+
+function triggerExplosion(point){ explosionPoint={...point}; explosionUntil=performance.now()+2600; explosionColorBoost=1; if(navigator.vibrate) navigator.vibrate([10,40,10]); }
+
+addEventListener('pointerdown',e=>{touches.set(e.pointerId,{x:e.clientX,y:e.clientY,t:performance.now()}); checkTwoFingerHold(); hideHintSoon();});
+addEventListener('pointermove',e=>{if(touches.has(e.pointerId)){ const t=touches.get(e.pointerId); t.x=e.clientX; t.y=e.clientY; }});
+addEventListener('pointerup',e=>{
+  const wasTwo=touches.size===2; const pts=[...touches.values()];
+  touches.delete(e.pointerId);
+  if(wasTwo && explosionArmed){ // only when two-finger and held >=10s
+    const mid=centroid(pts); triggerExplosion(mid);
   }
-  window.addEventListener('resize', resize, { passive:true });
-  resize();
+  checkTwoFingerHold();
+});
+addEventListener('pointercancel',e=>{touches.delete(e.pointerId); checkTwoFingerHold();});
 
-  // ---------- УТИЛИТЫ ----------
-  const rand = (a=0,b=1)=> a + Math.random()*(b-a);
-  const clamp = (v,a,b)=> Math.max(a, Math.min(b, v));
-  const lerp = (a,b,t)=> a + (b-a)*t;
-  const TAU = Math.PI*2;
-  function angle(x1,y1,x2,y2){ return Math.atan2(y2-y1, x2-x1); }
+// ---------- drawing ----------
+function loop(){ requestAnimationFrame(loop); frame++;
+  ctx.globalCompositeOperation='source-over'; ctx.fillStyle='rgba(11,15,20,0.06)'; ctx.fillRect(0,0,innerWidth,innerHeight);
 
-  // Псевдо-шум для фонового течения (быстрый, не «настоящий» Perlin)
-  function hash(n){ n = Math.sin(n)*43758.5453; return n - Math.floor(n); }
-  function noise2(x, y){
-    const i = Math.floor(x), j = Math.floor(y);
-    const a = hash(i + j*57), b = hash(i+1 + j*57), c = hash(i + (j+1)*57), d = hash(i+1 + (j+1)*57);
-    const u = x - i, v = y - j;
-    const ab = a + (b-a)*u;
-    const cd = c + (d-c)*u;
-    return ab + (cd-ab)*v;
+  // subtle focus glow at centroid when any touches
+  const pts=[...touches.values()]; if(pts.length>0){ const c=centroid(pts); const r=Math.min(innerWidth,innerHeight)*0.08; const g=ctx.createRadialGradient(c.x,c.y, r*0.2, c.x,c.y, r);
+    g.addColorStop(0,'rgba(120,231,255,0.10)'); g.addColorStop(1,'rgba(167,139,250,0.02)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(c.x,c.y,r,0,TAU); ctx.fill(); }
+
+  ctx.globalCompositeOperation='lighter'; ctx.lineCap='round'; ctx.lineWidth=params.thick;
+  const hueBase=params.hue; const now=performance.now();
+  for(let i=0;i<particles.length;i++){
+    const p=particles[i]; const x0=p.x,y0=p.y; p.step();
+    ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(p.x,p.y);
+
+    // color logic
+    let h=(hueBase+(i*0.03+frame*0.08))%360; let s=80, l=60, a=0.55;
+    if(touches.size>=3){ // color by nearest touch angle
+      const pts=[...touches.values()]; let nearest=pts[0]; let best=Infinity; for(const t of pts){ const d=(t.x-p.x)**2+(t.y-p.y)**2; if(d<best){best=d; nearest=t;} }
+      const ang=((Math.atan2(nearest.y-p.y, nearest.x-p.x)*RAD)+360)%360; h = (h*0.5 + ang*0.5)%360; s=85; a=0.6;
+    } else if(touches.size===2){ h=(h+20)%360; s=90; a=0.65; }
+
+    // explosion color boost
+    if(now<explosionUntil){ s=100; l=55; a=0.7; }
+
+    ctx.strokeStyle=hsla(h,s,l,a); ctx.stroke();
   }
+}
 
-  // ---------- КАСАНИЯ/ЖЕСТЫ ----------
-  const touches = new Map(); // id -> {x,y}
-  let holdTimer = null, holdStart = 0, eligibleForExplosion = false;
-  function updateTouches(ev){
-    touches.clear();
-    const pts = (ev.touches && ev.touches.length)? ev.touches : (ev.changedTouches||[]);
-    for (let i=0;i<pts.length;i++){
-      const t = pts[i];
-      const rect = canvas.getBoundingClientRect();
-      const x = (t.clientX - rect.left);
-      const y = (t.clientY - rect.top);
-      touches.set(t.identifier ?? 0, { x, y });
-    }
-  }
-  function pointerCount(){ return touches.size; }
-  function centroid(){
-    let sx=0, sy=0; for (const p of touches.values()){ sx+=p.x; sy+=p.y; }
-    const n = Math.max(1,touches.size); return { x:sx/n, y:sy/n };
-  }
-  function orderedPolygon(){
-    const arr = Array.from(touches.values());
-    const c = centroid();
-    arr.sort((a,b)=> Math.atan2(a.y - c.y, a.x - c.x) - Math.atan2(b.y - c.y, b.x - c.x));
-    return arr;
-  }
+// hint fade
+const hint=document.getElementById('hint');
+let hintTimer=setTimeout(()=>hint.classList.add('hidden'), 5500);
+function hideHintSoon(){ clearTimeout(hintTimer); hintTimer=setTimeout(()=>hint.classList.add('hidden'), 1800); }
 
-  canvas.addEventListener('touchstart', (ev)=>{
-    ev.preventDefault();
-    updateTouches(ev);
-    if (pointerCount()===2){
-      holdStart = performance.now();
-      eligibleForExplosion = false;
-      clearTimeout(holdTimer);
-      holdTimer = setTimeout(()=>{ eligibleForExplosion = true; }, CFG.EXP_MIN_HOLD);
-      // лёгкая вибрация при старте удержания
-      navigator.vibrate?.(10);
-    }
-    hint.style.opacity = 0; // спрячем подсказку
-  }, { passive:false });
-
-  canvas.addEventListener('touchmove', (ev)=>{
-    ev.preventDefault();
-    updateTouches(ev);
-  }, { passive:false });
-
-  canvas.addEventListener('touchend', (ev)=>{
-    ev.preventDefault();
-    updateTouches(ev);
-    if (pointerCount()<2 && eligibleForExplosion){
-      triggerExplosion(); // отпустили после 10с — взрыв
-    }
-    if (pointerCount()<2){
-      clearTimeout(holdTimer);
-      eligibleForExplosion = false;
-    }
-  }, { passive:false });
-
-  canvas.addEventListener('touchcancel', (ev)=>{
-    updateTouches(ev);
-    clearTimeout(holdTimer);
-    eligibleForExplosion = false;
-  }, { passive:false });
-
-  // Поддержка мыши (для ПК)
-  let mouseDown = false;
-  canvas.addEventListener('mousedown', (e)=>{
-    mouseDown = true;
-    const rect = canvas.getBoundingClientRect();
-    touches.set(0,{x:e.clientX-rect.left,y:e.clientY-rect.top});
-  });
-  window.addEventListener('mousemove', (e)=>{
-    if (!mouseDown) return;
-    const rect = canvas.getBoundingClientRect();
-    touches.set(0,{x:e.clientX-rect.left,y:e.clientY-rect.top});
-  });
-  window.addEventListener('mouseup', ()=>{
-    mouseDown = false; touches.clear();
-  });
-
-  // ---------- ЧАСТИЦЫ ----------
-  const targetParticles = (()=> {
-    const base = CFG.PARTICLES;
-    const area = (innerWidth*innerHeight)/ (390*740); // грубая нормировка
-    const mobileCap = /Mobi|Android/i.test(navigator.userAgent) ? 0.8 : 1.2;
-    return Math.floor(base * clamp(area, .6, 2.2) * mobileCap);
-  })();
-
-  const P = [];
-  function spawn(){
-    P.length = 0;
-    const { innerWidth:w, innerHeight:h } = window;
-    for (let i=0;i<targetParticles;i++){
-      P.push({
-        x: rand(0,w), y: rand(0,h),
-        vx: rand(-0.3,0.3), vy: rand(-0.3,0.3),
-        hue: rand(0,360),
-        life: rand(0,1)
-      });
-    }
-  }
-  spawn();
-
-  // ---------- ВЗРЫВ ----------
-  let explosion = null; // {cx,cy, t:0..1}
-  function triggerExplosion(){
-    const { x:cx, y:cy } = lastTwoCentroid();
-    explosion = { cx, cy, t:0 };
-    // мощный импульс + вибрации «удар»
-    navigator.vibrate?.([8,30,14,30,8]);
-    for (const p of P){
-      const a = angle(cx,cy,p.x,p.y) + rand(-CFG.EXP_JITTER, CFG.EXP_JITTER);
-      const dist = Math.hypot(p.x-cx, p.y-cy) + 1;
-      const shock = CFG.EXP_SHOCK / Math.sqrt(dist);
-      p.vx += Math.cos(a) * (CFG.EXP_BASE + shock);
-      p.vy += Math.sin(a) * (CFG.EXP_BASE + shock);
-      p.life = 0; // обновим цвет/яркость сразу после вспышки
-    }
-  }
-  function lastTwoCentroid(){
-    // если остался один палец на момент отпускания — берём последний известный центр
-    const pts = Array.from(touches.values());
-    if (pts.length>=2){
-      const c = centroid(); return c;
-    }
-    // иначе центр экрана
-    return { x: innerWidth/2, y: innerHeight/2 };
-  }
-
-  // ---------- РИСОВАНИЕ ----------
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-
-  function drawTrailFade(){
-    // аккуратное затухание шлейфа
-    ctx.save();
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = CFG.BACK_FADE;
-    ctx.fillStyle = '#0b0d10';
-    ctx.fillRect(0,0,canvas.width/DPR,canvas.height/DPR);
-    ctx.restore();
-  }
-
-  function strokeLine(x1,y1,x2,y2, w, h){
-    // рисуем на полу-пиксель для острой линии
-    ctx.beginPath();
-    ctx.moveTo((x1|0)+0.5, (y1|0)+0.5);
-    ctx.lineTo((x2|0)+0.5, (y2|0)+0.5);
-    ctx.lineWidth = w;
-    ctx.stroke();
-  }
-
-  function nearestPointOnSegment(px,py, ax,ay, bx,by){
-    const abx = bx-ax, aby = by-ay;
-    const apx = px-ax, apy = py-ay;
-    const ab2 = abx*abx + aby*aby || 1e-6;
-    let t = (apx*abx + apy*aby)/ab2;
-    t = clamp(t, 0, 1);
-    return { x: ax + abx*t, y: ay + aby*t, t };
-  }
-
-  function applyForces(dt){
-    const pc = pointerCount();
-    const { innerWidth:w, innerHeight:h } = window;
-
-    for (const p of P){
-      // фоновое поле — лёгкий «ветер»
-      const a = noise2(p.x*CFG.FIELD_SCALE, p.y*CFG.FIELD_SCALE)*TAU*2;
-      p.vx += Math.cos(a)*0.05;
-      p.vy += Math.sin(a)*0.05;
-
-      if (pc===1){
-        // ZEN: плавное притяжение к одной точке
-        const c = centroid();
-        const dx = c.x - p.x, dy = c.y - p.y;
-        p.vx += dx * CFG.ZEN_PULL * dt;
-        p.vy += dy * CFG.ZEN_PULL * dt;
-      } else if (pc===2){
-        // СБОР ВСЕГО: в центр между пальцами
-        const c = centroid();
-        const dx = c.x - p.x, dy = c.y - p.y;
-        p.vx += dx * CFG.ALL_PULL * dt;
-        p.vy += dy * CFG.ALL_PULL * dt;
-      } else if (pc>=3){
-        // ГЕОМЕТРИЯ: защёлка к ребрам многоугольника
-        const poly = orderedPolygon();
-        const N = poly.length;
-        // найдём ближайшую точку на любом ребре
-        let best = null, bestD = Infinity, bestEdge = 0;
-        for (let i=0;i<N;i++){
-          const aPt = poly[i], bPt = poly[(i+1)%N];
-          const proj = nearestPointOnSegment(p.x, p.y, aPt.x, aPt.y, bPt.x, bPt.y);
-          const d = (p.x-proj.x)**2 + (p.y-proj.y)**2;
-          if (d < bestD){ bestD=d; best=proj; bestEdge = i; }
-        }
-        // сила к ближайшей точке на ребре
-        const pull = CFG.POLY_PULL;
-        p.vx += (best.x - p.x) * pull * dt * (1 + CFG.EDGE_SNAP*0.5);
-        p.vy += (best.y - p.y) * pull * dt * (1 + CFG.EDGE_SNAP*0.5);
-        // лёгкая защёлка вдоль ребра (скользим к середине)
-        const aPt = orderedPolygon()[bestEdge];
-        const bPt = orderedPolygon()[(bestEdge+1)%N];
-        const midx = (aPt.x + bPt.x)/2, midy = (aPt.y + bPt.y)/2;
-        p.vx += (midx - p.x) * CFG.EDGE_SNAP * 0.06;
-        p.vy += (midy - p.y) * CFG.EDGE_SNAP * 0.06;
-      }
-
-      // взрыв — радиальный импульс, быстрое затухание
-      if (explosion){
-        const {cx,cy,t} = explosion;
-        const dx = p.x - cx, dy = p.y - cy;
-        const dist = Math.hypot(dx,dy)+1;
-        // ударная волна сильнее на близких
-        const force = Math.max(0, 1 - t) * (CFG.EXP_SHOCK / Math.sqrt(dist));
-        p.vx += (dx/dist) * force * 1.1;
-        p.vy += (dy/dist) * force * 1.1;
-      }
-
-      // трение/границы
-      p.vx *= (1 - CFG.DRAG);
-      p.vy *= (1 - CFG.DRAG);
-      p.x += p.vx; p.y += p.vy;
-
-      // отскоки — чтобы взрыв «щелкал»
-      if (p.x<0){ p.x=0; p.vx=Math.abs(p.vx); }
-      if (p.y<0){ p.y=0; p.vy=Math.abs(p.vy); }
-      if (p.x>w){ p.x=w; p.vx=-Math.abs(p.vx); }
-      if (p.y>h){ p.y=h; p.vy=-Math.abs(p.vy); }
-
-      // обновим «жизнь» для цвета
-      p.life = (p.life + dt*0.8) % 1;
-    }
-
-    // управление временем взрыва
-    if (explosion){
-      explosion.t += CFG.EXP_DECAY;
-      if (explosion.t>=1){ explosion = null; }
-    }
-  }
-
-  function draw(dt){
-    drawTrailFade();
-
-    // мягкое свечение
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.shadowBlur = 18*CFG.GLOW;
-    ctx.shadowColor = 'rgba(255,255,255,0.25)';
-    for (const p of P){
-      const speed = Math.hypot(p.vx, p.vy);
-      const w = CFG.LINE_WIDTH * (1 + Math.min(1.7, speed*0.15));
-      const nx = p.x + p.vx*0.8, ny = p.y + p.vy*0.8;
-
-      // Цвет: радуга по углу + вспышка на взрыве
-      const ang = Math.atan2(p.vy, p.vx);
-      const baseHue = (ang*180/Math.PI + 360) % 360;
-      const burstBoost = explosion ? (1 - explosion.t) : 0;
-      const hue = (baseHue + 30*burstBoost) % 360;
-      const sat = 70 + 30*burstBoost;
-      const light = 55 + 20*Math.min(1, speed*0.07) + 10*burstBoost;
-      ctx.strokeStyle = `hsl(${hue} ${sat}% ${light}%)`;
-
-      strokeLine(p.x, p.y, nx, ny, w);
-    }
-    ctx.restore();
-
-    // подсветка точек касания (минимальная, не мешает)
-    if (touches.size){
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.15;
-      for (const t of touches.values()){
-        const r = 40;
-        const grd = ctx.createRadialGradient(t.x,t.y,0,t.x,t.y,r*2);
-        grd.addColorStop(0, 'rgba(255,255,255,0.35)');
-        grd.addColorStop(1, 'rgba(255,255,255,0)');
-        ctx.fillStyle = grd;
-        ctx.beginPath(); ctx.arc(t.x,t.y,r*2,0,TAU); ctx.fill();
-      }
-      ctx.restore();
-    }
-  }
-
-  // ---------- ЦИКЛ ----------
-  let last = performance.now();
-  function tick(now){
-    const dt = clamp((now-last)/16.666, 0.5, 2.5);
-    last = now;
-    applyForces(dt);
-    draw(dt);
-    requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
-
-  // авто-скрытие подсказки
-  const hint = document.getElementById('hint');
-  setTimeout(()=>{ hint.style.transition='opacity .5s ease'; hint.style.opacity=0; }, 3500);
-})();
+// start
+loop();
 </script>
 </body>
 </html>
