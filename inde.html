@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flow Field Playground</title>
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --panel: #0f1520cc;
+      --muted: #9aa4b2;
+      --accent: #6ee7ff;
+    }
+    *{box-sizing:border-box}
+    html, body { height: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: #e8eef5; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      overflow: hidden; /* canvases are fullscreen */
+    }
+    #c { position: fixed; inset: 0; display:block; }
+    /* subtle grain layer for vibe */
+    #grain { position: fixed; inset: 0; pointer-events:none; opacity:.07; mix-blend-mode: overlay; }
+
+    .hud { position: fixed; top: 16px; right: 16px; background: var(--panel); border: 1px solid #1f2937; border-radius: 16px; padding: 12px 14px; box-shadow: 0 10px 30px rgba(0,0,0,.35); backdrop-filter: blur(8px); min-width: 280px; }
+    .row { display: grid; grid-template-columns: 120px 1fr 52px; align-items: center; gap: 8px; margin: 8px 0; }
+    .row label { font-size: 12px; color: var(--muted); }
+    .row input[type=range] { width: 100%; }
+    .row output { text-align: right; font-variant-numeric: tabular-nums; color:#cfe7ff }
+    .buttons { display:flex; gap:8px; margin-top: 10px; flex-wrap: wrap; }
+    button { cursor:pointer; border:1px solid #243244; background:#0b1220; color:#d3e1ff; border-radius: 12px; padding:8px 12px; font-weight:600; transition: transform .04s ease, background .2s ease; }
+    button:hover{ background:#0d1729 }
+    button:active{ transform: translateY(1px) }
+    .title { font-weight: 800; letter-spacing:.2px; font-size: 14px; color:#d9f3ff; margin-bottom: 6px; display:flex; align-items:center; gap:8px }
+    .title .dot {width:10px;height:10px;border-radius:50%;background:var(--accent); box-shadow: 0 0 20px var(--accent);}
+    .hint { font-size:12px; color: var(--muted); margin-top: 6px; }
+    .footer { position: fixed; left: 16px; bottom: 12px; color: #7b8799; font-size: 12px; opacity:.8 }
+    .kbd{padding:.1em .4em;border:1px solid #2b3a4f;border-bottom-width:2px;border-radius:6px;background:#0b1220;color:#c6d4e3}
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <canvas id="grain"></canvas>
+
+  <div class="hud" id="hud">
+    <div class="title"><span class="dot"></span>Flow Field Playground</div>
+
+    <div class="row"><label>Частиц</label><input id="count" type="range" min="200" max="8000" step="100" value="2500"><output id="countOut">2500</output></div>
+    <div class="row"><label>Скорость</label><input id="speed" type="range" min="0.1" max="6" step="0.1" value="2.2"><output id="speedOut">2.2</output></div>
+    <div class="row"><label>Толщина</label><input id="thick" type="range" min="0.2" max="3.5" step="0.1" value="0.8"><output id="thickOut">0.8</output></div>
+    <div class="row"><label>Масштаб поля</label><input id="scale" type="range" min="100" max="1000" step="10" value="420"><output id="scaleOut">420</output></div>
+    <div class="row"><label>Цветовой сдвиг</label><input id="hue" type="range" min="0" max="360" step="1" value="200"><output id="hueOut">200°</output></div>
+
+    <div class="buttons">
+      <button id="toggle">Пауза</button>
+      <button id="clear">Очистить</button>
+      <button id="save">Сохранить PNG</button>
+    </div>
+    <div class="hint">Подсказки: удерживайте мышь — частицы тянет к курсору. Нажмите <span class="kbd">H</span> — спрятать UI, <span class="kbd">R</span> — случайное поле.</div>
+  </div>
+
+  <div class="footer">© Flow Field • vanilla JS + Canvas • 60fps на большинстве устройств</div>
+
+<script>
+// ---------- tiny utils ----------
+const rand = (a=1,b=0)=>a+(b-a)*Math.random();
+const clamp=(x,min,max)=>Math.min(max,Math.max(min,x));
+function hsla(h,s,l,a=1){return `hsla(${h},${s}%,${l}%,${a})`}
+
+// ---------- simplex noise (2D) ----------
+// Lightweight Simplex Noise by Jonas Wagner (public domain) – inlined for convenience
+// source: https://github.com/jwagner/simplex-noise.js (trimmed)
+class SimplexNoise{
+  constructor(r=Math){this.p=new Uint8Array(256);for(let i=0;i<256;i++)this.p[i]=i;for(let i=255;i>0;i--){const n=r.random()* (i+1)|0;const q=this.p[i];this.p[i]=this.p[n];this.p[n]=q}this.perm=new Uint8Array(512);for(let i=0;i<512;i++)this.perm[i]=this.p[i&255];}
+  noise2D(xin,yin){const grad3=new Float32Array([1,1,-1,1,1,-1,-1,-1,1,0,-1,0,1,0,-1,0,0,1,0,-1,0,1,0,-1]);const F2=0.5*(Math.sqrt(3)-1);const G2=(3-Math.sqrt(3))/6;let n0=0,n1=0,n2=0;const s=(xin+yin)*F2;const i=Math.floor(xin+s);const j=Math.floor(yin+s);const t=(i+j)*G2;const X0=i-t;const Y0=j-t;const x0=xin-X0;const y0=yin-Y0;let i1,j1; if(x0>y0){i1=1;j1=0;} else {i1=0;j1=1;} const x1=x0-i1+G2; const y1=y0-j1+G2; const x2=x0-1+2*G2; const y2=y0-1+2*G2; const ii=i&255; const jj=j&255; const gi0=this.perm[ii+this.perm[jj]]%12*2; const gi1=this.perm[ii+i1+this.perm[jj+j1]]%12*2; const gi2=this.perm[ii+1+this.perm[jj+1]]%12*2; let t0=0.5-x0*x0-y0*y0;if(t0>=0){t0*=t0; n0=t0*t0*(grad3[gi0]*x0+grad3[gi0+1]*y0);} let t1=0.5-x1*x1-y1*y1;if(t1>=0){t1*=t1; n1=t1*t1*(grad3[gi1]*x1+grad3[gi1+1]*y1);} let t2=0.5-x2*x2-y2*y2;if(t2>=0){t2*=t2; n2=t2*t2*(grad3[gi2]*x2+grad3[gi2+1]*y2);} return 70*(n0+n1+n2);
+  }
+}
+
+// ---------- setup ----------
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+const grainCanvas = document.getElementById('grain');
+const gctx = grainCanvas.getContext('2d');
+let W=0,H=0, DPR = Math.min(2, window.devicePixelRatio||1);
+
+function resize(){
+  W = canvas.width = Math.floor(innerWidth * DPR);
+  H = canvas.height = Math.floor(innerHeight * DPR);
+  canvas.style.width = innerWidth + 'px';
+  canvas.style.height = innerHeight + 'px';
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.scale(DPR,DPR);
+
+  grainCanvas.width = Math.floor(innerWidth * DPR);
+  grainCanvas.height = Math.floor(innerHeight * DPR);
+  grainCanvas.style.width = innerWidth + 'px';
+  grainCanvas.style.height = innerHeight + 'px';
+  drawGrain();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- grain texture ----------
+function drawGrain(){
+  const img = gctx.createImageData(grainCanvas.width, grainCanvas.height);
+  for(let i=0;i<img.data.length;i+=4){
+    const v = 200 + (Math.random()*55)|0; // near-white noise
+    img.data[i]=img.data[i+1]=img.data[i+2]=v; img.data[i+3]=255;
+  }
+  gctx.putImageData(img,0,0);
+}
+
+// ---------- flow field + particles ----------
+const noise = new SimplexNoise();
+let particles = [];
+const params = { count: 2500, speed: 2.2, thick: 0.8, scale: 420, hue: 200, paused:false };
+let frame=0, seed = Math.random()*1000;
+
+class Particle{
+  constructor(){ this.reset(true); }
+  reset(randomPos=false){
+    this.x = randomPos ? rand(0, innerWidth) : innerWidth/2;
+    this.y = randomPos ? rand(0, innerHeight) : innerHeight/2;
+    this.vx = 0; this.vy = 0; this.life = rand(100,400); this.age = 0;
+  }
+  step(){
+    this.age++; if(this.age>this.life){ this.reset(true); }
+    const n = noise.noise2D((this.x+seed)/params.scale, (this.y-seed)/params.scale);
+    const a = n * Math.PI*2 + frame*0.002; // rotate slowly over time
+
+    // attraction to cursor
+    let ax = Math.cos(a), ay = Math.sin(a);
+    if(mouse.down){
+      const dx = mouse.x - this.x; const dy = mouse.y - this.y; const d2=dx*dx+dy*dy; const f = 60/Math.max(60,d2);
+      ax += dx*f; ay += dy*f;
+    }
+    this.vx += ax*0.15; this.vy += ay*0.15;
+    const spd = params.speed * 0.6;
+    this.vx *= 0.9; this.vy *= 0.9; // damping
+    this.x += this.vx*spd; this.y += this.vy*spd;
+
+    // wrap around edges
+    if(this.x<0) this.x+=innerWidth; if(this.x>innerWidth) this.x-=innerWidth;
+    if(this.y<0) this.y+=innerHeight; if(this.y>innerHeight) this.y-=innerHeight;
+  }
+}
+
+function rebuildParticles(){
+  const target = params.count|0;
+  if(target>particles.length){
+    for(let i=particles.length;i<target;i++) particles.push(new Particle());
+  } else if(target<particles.length){
+    particles.length = target;
+  }
+}
+
+// ---------- controls ----------
+const el = id=>document.getElementById(id);
+const count=el('count'), speed=el('speed'), thick=el('thick'), scale=el('scale'), hue=el('hue');
+const countOut=el('countOut'), speedOut=el('speedOut'), thickOut=el('thickOut'), scaleOut=el('scaleOut'), hueOut=el('hueOut');
+function bindRange(range, out, key, fmt=v=>v){
+  const update=()=>{ params[key] = parseFloat(range.value); out.textContent = fmt(range.value); if(key==='count') rebuildParticles(); };
+  range.addEventListener('input', update); update();
+}
+bindRange(count, countOut, 'count', v=>v);
+bindRange(speed, speedOut, 'speed', v=>(+v).toFixed(1));
+bindRange(thick, thickOut, 'thick', v=>(+v).toFixed(1));
+bindRange(scale, scaleOut, 'scale', v=>v);
+bindRange(hue, hueOut, 'hue', v=>`${v}°`);
+
+el('toggle').onclick=()=>{ params.paused=!params.paused; el('toggle').textContent = params.paused? 'Продолжить':'Пауза'; };
+el('clear').onclick=()=>{ clearCanvas(true); };
+el('save').onclick=()=>{ const a=document.createElement('a'); a.download='flow-field.png'; a.href=canvas.toDataURL('image/png'); a.click(); };
+
+let mouse={x:0,y:0,down:false};
+addEventListener('pointerdown', e=>{mouse.down=true; mouse.x=e.clientX; mouse.y=e.clientY});
+addEventListener('pointerup', ()=>mouse.down=false);
+addEventListener('pointermove', e=>{mouse.x=e.clientX; mouse.y=e.clientY});
+addEventListener('keydown', e=>{
+  if(e.key==='h' || e.key==='H'){ document.getElementById('hud').style.display = getComputedStyle(document.getElementById('hud')).display==='none'?'block':'none'; }
+  if(e.key==='r' || e.key==='R'){ seed = Math.random()*1000; }
+});
+
+function clearCanvas(prime=false){
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle = 'rgba(8,12,18,1)';
+  ctx.fillRect(0,0,innerWidth,innerHeight);
+  ctx.restore();
+  if(prime){
+    // prime with a faint vignette
+    const g = ctx.createRadialGradient(innerWidth/2, innerHeight/2, 0, innerWidth/2, innerHeight/2, Math.max(innerWidth,innerHeight)*0.8);
+    g.addColorStop(0, 'rgba(15,20,30,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle=g; ctx.fillRect(0,0,innerWidth,innerHeight);
+  }
+}
+
+// ---------- draw loop ----------
+function loop(){
+  requestAnimationFrame(loop);
+  if(params.paused) return;
+  frame++;
+  // draw trails with slight fade
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='rgba(11,15,20,0.06)';
+  ctx.fillRect(0,0,innerWidth,innerHeight);
+
+  ctx.globalCompositeOperation='lighter';
+  ctx.lineWidth = params.thick;
+  ctx.lineCap = 'round';
+
+  const hueBase = params.hue;
+  for(let i=0;i<particles.length;i++){
+    const p = particles[i];
+    const x0=p.x, y0=p.y;
+    p.step();
+    ctx.beginPath();
+    ctx.moveTo(x0,y0);
+    ctx.lineTo(p.x,p.y);
+    const h = (hueBase + (i*0.03 + frame*0.1))%360;
+    ctx.strokeStyle = hsla(h, 80, 60, 0.5);
+    ctx.stroke();
+  }
+}
+
+clearCanvas(true);
+rebuildParticles();
+loop();
+</script>
+</body>
+</html>

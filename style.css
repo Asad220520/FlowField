@@ -1,0 +1,17 @@
+svg {
+  width: 200px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+}
+ul {
+  display: flex;
+  gap: 20px;
+}
+li {
+  display: inline;
+  list-style: none;
+}
