@@ -3,112 +3,37 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Flow Field — Touch Portal (Mobile-First)</title>
-  <meta name="theme-color" content="#0b0f14" />
+  <title>Flow Field — Gestures Only</title>
+  <meta name="theme-color" content="#070b11" />
   <style>
-    :root{
-      --bg:#070b11; --panel:#0d1421cc; --muted:#a3adbb; --accent:#78e7ff; --accent2:#a78bfa; --text:#e8eef5; --soft:#d3e1ff;
-    }
-    *{box-sizing:border-box}
+    :root{--bg:#070b11;--text:#e8eef5}
+    *{box-sizing:border-box;}
     html,body{height:100%}
-    body{margin:0;background:radial-gradient(1200px 900px at 70% 10%, #0d1320 0%, #070b11 70%);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial;overscroll-behavior:none;touch-action:manipulation}
-    #c{position:fixed;inset:0;display:block;touch-action:none}
-    #grain{position:fixed;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:overlay}
-
-    /* Safe areas for iOS */
-    .safe-bottom{padding-bottom:calc(12px + env(safe-area-inset-bottom));}
-    .safe-top{padding-top:calc(12px + env(safe-area-inset-top));}
-
-    /* --- Top bar (auto hidden on mobile) --- */
-    .topbar{position:fixed;left:12px;right:12px;top:12px;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--panel);border:1px solid #1c2736;backdrop-filter:blur(8px);box-shadow:0 12px 30px rgba(0,0,0,.35)}
-    .logo{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.2px}
-    .dot{width:14px;height:14px;border-radius:50%;background:conic-gradient(from 0deg, #69eafb, #8ef5b6, #e6ff7a, #ffb36b, #ff74a0, #a78bfa, #69eafb);box-shadow:0 0 20px #69eafb}
-    .topbar .spacer{flex:1}
-    .btn{cursor:pointer;user-select:none;border:1px solid #203044;background:#0b1220;color:var(--soft);border-radius:14px;padding:12px 14px;font-weight:800;display:inline-flex;align-items:center;gap:8px;transition:transform .04s ease, background .2s ease}
-    .btn:active{transform:translateY(1px)}
-
-    /* --- Bottom sheet panel (mobile-first) --- */
-    .panel{position:fixed;left:12px;right:12px;bottom:12px;max-width:680px;margin:0 auto;background:var(--panel);border:1px solid #1c2736;border-radius:18px;padding:10px 14px 14px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
-    .panel.drag-handle{padding-top:6px}
-    .handle{width:52px;height:5px;border-radius:999px;background:#263142;margin:6px auto 8px;opacity:.9}
-    .row{display:grid;grid-template-columns:1fr 2fr 70px;align-items:center;gap:12px;margin:12px 0}
-    .row label{font-size:14px;color:var(--muted)}
-    .row input[type=range]{width:100%;height:40px}
-    .row output{text-align:right;font-variant-numeric:tabular-nums;color:#cfe7ff;font-size:14px}
-    .toggle{display:flex;align-items:center;gap:12px;margin-top:4px}
-    .toggle input{transform:scale(1.25)}
-    .pill{display:flex;gap:8px;flex-wrap:wrap}
-    .pill .btn{padding:10px 14px;border-radius:999px}
-
-    .hint{font-size:12px;color:var(--muted);margin-top:6px}
-    .footer{position:fixed;left:12px;bottom:10px;color:#7b8799;font-size:12px;opacity:.9}
-
-    /* --- Big thumb buttons --- */
-    .fab{position:fixed;right:14px;bottom:calc(86px + env(safe-area-inset-bottom));border-radius:16px;padding:14px 16px;font-size:16px;font-weight:900;background:#0b1220;border:1px solid #203044;color:var(--soft);box-shadow:0 12px 28px rgba(0,0,0,.35);touch-action:manipulation}
-    .fab:active{transform:translateY(1px)}
-
-    @media (min-width: 821px){
-      .panel{right:12px;left:auto;top:70px;bottom:auto;width:min(92vw,360px)}
-      .fab{bottom:auto;top:90px}
-    }
+    body{margin:0;background:radial-gradient(1200px 900px at 70% 10%, #0d1320 0%, #070b11 70%);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial;overscroll-behavior:none;touch-action:none}
+    #c{position:fixed;inset:0;display:block}
+    #grain{position:fixed;inset:0;pointer-events:none;opacity:.06;mix-blend-mode:overlay}
+    .hint{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);font-size:14px;letter-spacing:.2px;color:#a9b4c4;background:#0d1421cc;border:1px solid #1b2636;border-radius:16px;padding:10px 12px;backdrop-filter:blur(8px);box-shadow:0 12px 30px rgba(0,0,0,.35);opacity:.95;transition:opacity .6s ease}
+    .hidden{opacity:0}
   </style>
 </head>
 <body>
   <canvas id="c"></canvas>
   <canvas id="grain"></canvas>
-
-  <div class="topbar safe-top" id="topbar">
-    <div class="logo"><span class="dot"></span>Flow Field • Touch Portal</div>
-    <div class="spacer"></div>
-    <button class="btn" id="btnFull">Полный экран</button>
-    <button class="btn" id="btnSave">PNG</button>
-  </div>
-
-  <button class="fab" id="fabGather">Собрать всё</button>
-
-  <div class="panel safe-bottom drag-handle" id="panel">
-    <div class="handle" id="handle"></div>
-    <div class="row"><label>Частиц</label><input id="count" type="range" min="500" max="16000" step="100"><output id="countOut"></output></div>
-    <div class="row"><label>Скорость</label><input id="speed" type="range" min="0.1" max="6" step="0.1"><output id="speedOut"></output></div>
-    <div class="row"><label>Толщина</label><input id="thick" type="range" min="0.2" max="3.5" step="0.1"><output id="thickOut"></output></div>
-    <div class="row"><label>Масштаб поля</label><input id="scale" type="range" min="100" max="1200" step="10"><output id="scaleOut"></output></div>
-    <div class="row"><label>Сдвиг цвета</label><input id="hue" type="range" min="0" max="360" step="1"><output id="hueOut"></output></div>
-    <div class="row"><label>Сила сбора</label><input id="gather" type="range" min="0" max="3" step="0.05"><output id="gatherOut"></output></div>
-
-    <div class="toggle">
-      <input type="checkbox" id="gatherAll">
-      <label for="gatherAll">Собирать ВСЕ линии к точке</label>
-    </div>
-    <div class="toggle">
-      <input type="checkbox" id="pinPoint">
-      <label for="pinPoint">Закрепить точку (долгое касание тоже пинает)</label>
-    </div>
-
-    <div class="pill" style="margin-top:8px">
-      <button class="btn" data-preset="calm">Спокойный</button>
-      <button class="btn" data-preset="neon">Неон</button>
-      <button class="btn" data-preset="storm">Шторм</button>
-      <button class="btn" data-preset="dust">Пыльца</button>
-    </div>
-
-    <div class="hint">Жесты: свайпни панель вниз/вверх, тап — точка, удержание 0.5с — закрепить, двойной тап — скрыть/показать UI. <b>Совет:</b> на телефоне панель стартует скрытой.</div>
-  </div>
-
-  <div class="footer">© Flow Field • оптимизировано для телефона • авто-настройка производительности</div>
+  <div class="hint" id="hint">1 палец — мягко веди линии · 2 пальца — собрать всё (удержи ≥10с, отпусти → взрыв) · 3+ пальцев — геометрические фигуры</div>
 
 <script>
-// ------- utils -------
+// ---------- utils ----------
 const rand=(a=1,b=0)=>a+(b-a)*Math.random();
 const clamp=(x,min,max)=>Math.min(max,Math.max(min,x));
 const lerp=(a,b,t)=>a+(b-a)*t;
-const RAD=180/Math.PI;
+const TAU=Math.PI*2, RAD=180/Math.PI;
 const hsla=(h,s,l,a=1)=>`hsla(${h},${s}%,${l}%,${a})`;
 
-// ------- noise -------
+// ---------- noise ----------
 class SimplexNoise{constructor(r=Math){this.p=new Uint8Array(256);for(let i=0;i<256;i++)this.p[i]=i;for(let i=255;i>0;i--){const n=r.random()*(i+1)|0;const q=this.p[i];this.p[i]=this.p[n];this.p[n]=q}this.perm=new Uint8Array(512);for(let i=0;i<512;i++)this.perm[i]=this.p[i&255];}
   noise2D(xin,yin){const g=new Float32Array([1,1,-1,1,1,-1,-1,-1,1,0,-1,0,1,0,-1,0,0,1,0,-1,0,1,0,-1]);const F2=0.5*(Math.sqrt(3)-1),G2=(3-Math.sqrt(3))/6;let n0=0,n1=0,n2=0;const s=(xin+yin)*F2;const i=Math.floor(xin+s),j=Math.floor(yin+s);const t=(i+j)*G2;const X0=i-t,Y0=j-t;const x0=xin-X0,y0=yin-Y0;let i1,j1;if(x0>y0){i1=1;j1=0}else{i1=0;j1=1}const x1=x0-i1+G2,y1=y0-j1+G2,x2=x0-1+2*G2,y2=y0-1+2*G2;const ii=i&255,jj=j&255;const gi0=this.perm[ii+this.perm[jj]]%12*2,gi1=this.perm[ii+i1+this.perm[jj+j1]]%12*2,gi2=this.perm[ii+1+this.perm[jj+1]]%12*2;let t0=0.5-x0*x0-y0*y0;if(t0>=0){t0*=t0;n0=t0*t0*(g[gi0]*x0+g[gi0+1]*y0)}let t1=0.5-x1*x1-y1*y1;if(t1>=0){t1*=t1;n1=t1*t1*(g[gi1]*x1+g[gi1+1]*y1)}let t2=0.5-x2*x2-y2*y2;if(t2>=0){t2*=t2;n2=t2*t2*(g[gi2]*x2+g[gi2+1]*y2)}return 70*(n0+n1+n2)} }
 
-// ------- canvas -------
+// ---------- canvas ----------
 const canvas=document.getElementById('c');
 const ctx=canvas.getContext('2d',{alpha:false});
 const grainCanvas=document.getElementById('grain');
@@ -116,112 +41,114 @@ const gctx=grainCanvas.getContext('2d');
 let DPR=Math.min(2,window.devicePixelRatio||1);
 function resize(){const W=Math.floor(innerWidth*DPR),H=Math.floor(innerHeight*DPR);canvas.width=W;canvas.height=H;canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';ctx.setTransform(1,0,0,1,0,0);ctx.scale(DPR,DPR);grainCanvas.width=W;grainCanvas.height=H;grainCanvas.style.width=innerWidth+'px';grainCanvas.style.height=innerHeight+'px';drawGrain();}
 addEventListener('resize',resize);resize();
-
 function drawGrain(){const img=gctx.createImageData(grainCanvas.width,grainCanvas.height);for(let i=0;i<img.data.length;i+=4){const v=200+(Math.random()*55)|0;img.data[i]=img.data[i+1]=img.data[i+2]=v;img.data[i+3]=255;}gctx.putImageData(img,0,0)}
 
-// ------- simulation -------
+// ---------- simulation ----------
 const noise=new SimplexNoise();
-let particles=[];
-const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-const defaultCount = isMobile? 2800 : 5000;
-const params={count:defaultCount,speed:2.2,thick:1.1,scale:480,hue:210,gather:1.3,gatherAll:false,pinPoint:false,paused:false};
-let frame=0,seed=Math.random()*1000;
+const isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+let particles=[]; const params={count:isMobile?3000:5500, speed:2.0, thick:1.15, scale:480, hue:210};
+let frame=0, seed=Math.random()*1000;
 
-class Particle{constructor(){this.reset(true);}reset(randomPos=false){this.x=randomPos?rand(0,innerWidth):innerWidth/2;this.y=randomPos?rand(0,innerHeight):innerHeight/2;this.vx=0;this.vy=0;this.life=rand(120,420);this.age=0;this.h=rand(0,360);}step(){this.age++;if(this.age>this.life)this.reset(true);
-  const n=noise.noise2D((this.x+seed)/params.scale,(this.y-seed)/params.scale);
-  const a=n*Math.PI*2 + frame*0.002;
-  let ax=Math.cos(a)*0.16, ay=Math.sin(a)*0.16;
+class Particle{constructor(){this.reset(true);}reset(rnd=false){this.x=rnd?rand(0,innerWidth):innerWidth/2;this.y=rnd?rand(0,innerHeight):innerHeight/2;this.vx=0;this.vy=0;this.life=rand(140,420);this.age=0;this.h=rand(0,360);}step(){this.age++; if(this.age>this.life) this.reset(true);
+  const n=noise.noise2D((this.x+seed)/params.scale,(this.y-seed)/params.scale); const a=n*TAU + frame*0.002;
+  let ax=Math.cos(a)*0.16, ay=Math.sin(a)*0.16; // base flow
 
-  const target = point.active? point : null;
-  if(target){
-    let dx=target.x-this.x, dy=target.y-this.y; const d=Math.hypot(dx,dy)||1;
-    let f = params.gatherAll? params.gather*0.9 : params.gather*1.25 * Math.pow(1-Math.min(1,d/170), 2.2);
-    ax += (dx/d) * f; ay += (dy/d) * f;
-  }
+  // gesture forces
+  applyForces(this, ax, ay);
 
-  this.vx = (this.vx + ax) * 0.90; this.vy = (this.vy + ay) * 0.90;
-  const spd = params.speed * 0.82; this.x += this.vx*spd; this.y += this.vy*spd;
+  const damp=0.90; this.vx=(this.vx+ax)*damp; this.vy=(this.vy+ay)*damp;
+  const spd=params.speed*0.82; this.x+=this.vx*spd; this.y+=this.vy*spd;
   if(this.x<0)this.x+=innerWidth; if(this.x>innerWidth)this.x-=innerWidth; if(this.y<0)this.y+=innerHeight; if(this.y>innerHeight)this.y-=innerHeight;}}
 
-function rebuildParticles(){const target=params.count|0; if(target>particles.length){for(let i=particles.length;i<target;i++)particles.push(new Particle());}else if(target<particles.length){particles.length=target;}}
+function rebuild(){const t=params.count|0; if(t>particles.length){for(let i=particles.length;i<t;i++)particles.push(new Particle());}else particles.length=t;}
+rebuild();
 
-// ------- UI bindings -------
-const $=id=>document.getElementById(id);
-const ranges=[["count","countOut",v=>v],["speed","speedOut",v=>(+v).toFixed(1)],["thick","thickOut",v=>(+v).toFixed(1)],["scale","scaleOut",v=>v],["hue","hueOut",v=>`${v}°`],["gather","gatherOut",v=>(+v).toFixed(2)]];
-for(const [k,out,fmt] of ranges){const el=$(k), eo=$(out); el.value=params[k]; eo.textContent=fmt(params[k]); el.addEventListener('input',()=>{params[k]=parseFloat(el.value); eo.textContent=fmt(el.value); if(k==='count') rebuildParticles();});}
-$('gatherAll').checked=params.gatherAll; $('gatherAll').addEventListener('change',e=>{params.gatherAll=e.target.checked; setFabState()});
-$('pinPoint').checked=params.pinPoint; $('pinPoint').addEventListener('change',e=>{params.pinPoint=e.target.checked; if(!params.pinPoint) point.active=false});
+// ---------- gestures ----------
+const touches=new Map(); // id -> {x,y,t}
+let gestureStartTime=0; let heldTwoFinger=false; let explosionArmed=false; let lastMode='';
+let explosionUntil=0; let explosionColorBoost=0; let explosionPoint={x:0,y:0};
 
-// Presets
-for(const b of document.querySelectorAll('[data-preset]')){
-  b.addEventListener('click',()=>{
-    const p=b.getAttribute('data-preset');
-    if(p==='calm'){params.speed=1.4; params.thick=0.9; params.scale=540; params.hue=210; params.gather=1.0}
-    if(p==='neon'){params.speed=2.6; params.thick=1.4; params.scale=360; params.hue=300; params.gather=1.8}
-    if(p==='storm'){params.speed=3.6; params.thick=1.5; params.scale=280; params.hue=40;  params.gather=2.2}
-    if(p==='dust'){params.speed=0.9; params.thick=0.7; params.scale=700; params.hue=150; params.gather=0.7}
-    for(const [k,out,fmt] of ranges){$(k).value=params[k]; $(out).textContent=fmt(params[k]);}
-  })
+function updateModeFeedback(mode){ if(mode!==lastMode){ if(navigator.vibrate) navigator.vibrate(12); lastMode=mode; }}
+
+function centroid(points){ let sx=0,sy=0; for(const p of points){sx+=p.x; sy+=p.y;} return {x:sx/points.length, y:sy/points.length}; }
+
+function polySort(points){ const c=centroid(points); return [...points].sort((a,b)=>Math.atan2(a.y-c.y,a.x-c.x)-Math.atan2(b.y-c.y,b.x-c.x)); }
+
+function applyForces(p, ax, ay){ const now=performance.now(); const pts=[...touches.values()]; const k=pts.length;
+  // explosion force override
+  if(now<explosionUntil){ const dx=p.x-explosionPoint.x, dy=p.y-explosionPoint.y; const d=Math.hypot(dx,dy)||1; const f=3.5*Math.exp(-d/260); p.vx+= (dx/d)*f + (rand(-0.5,0.5)); p.vy+= (dy/d)*f + (rand(-0.5,0.5)); return; }
+
+  if(k===0){ return; }
+  if(k===1){ // one finger: calm attraction, local falloff
+    updateModeFeedback('one');
+    const t=pts[0]; const dx=t.x-p.x, dy=t.y-p.y; const d=Math.hypot(dx,dy)||1; const f=1.1*Math.pow(1-Math.min(1,d/180),2.2); p.vx+= (dx/d)*f; p.vy+= (dy/d)*f; return; }
+  if(k===2){ // two fingers: gather all to mid
+    updateModeFeedback('two');
+    const mid=centroid(pts); const dx=mid.x-p.x, dy=mid.y-p.y; const d=Math.hypot(dx,dy)||1; const f=1.8; p.vx+= (dx/d)*f; p.vy+= (dy/d)*f; return; }
+  // 3+ fingers: geometric figure
+  updateModeFeedback('poly');
+  const ordered=polySort(pts); const c=centroid(ordered); // pull towards nearest vertex and edge
+  let nearest=ordered[0]; let best=Infinity; for(const v of ordered){ const dd=(v.x-p.x)**2+(v.y-p.y)**2; if(dd<best){best=dd; nearest=v;} }
+  // attraction to nearest vertex
+  let dx=nearest.x-p.x, dy=nearest.y-p.y; let d=Math.hypot(dx,dy)||1; let f=1.6*Math.pow(1-Math.min(1,d/220),2.0); p.vx+= (dx/d)*f; p.vy+= (dy/d)*f;
+  // and slight pull towards polygon center for cohesion
+  dx=c.x-p.x; dy=c.y-p.y; d=Math.hypot(dx,dy)||1; f=0.6; p.vx+= (dx/d)*f; p.vy+= (dy/d)*f;
 }
 
-// Top actions
-$('btnSave').onclick=()=>{const a=document.createElement('a'); a.download='flow-field.png'; a.href=canvas.toDataURL('image/png'); a.click();};
-$('btnFull').onclick=()=>{if(!document.fullscreenElement){document.documentElement.requestFullscreen().catch(()=>{});} else {document.exitFullscreen();}};
+// timers for 2-finger hold
+function checkTwoFingerHold(){ const now=performance.now(); if(touches.size===2){ if(!heldTwoFinger){ heldTwoFinger=true; gestureStartTime=now; explosionArmed=false; } else {
+    const dur=now-gestureStartTime; if(dur>=10000){ explosionArmed=true; } }
+  } else { heldTwoFinger=false; }}
 
-// Thumb-friendly FAB
-const fab=$('fabGather');
-function setFabState(){fab.textContent = params.gatherAll? 'Расслабить' : 'Собрать всё';}
-fab.addEventListener('click',()=>{params.gatherAll=!params.gatherAll; $('gatherAll').checked=params.gatherAll; setFabState(); if(navigator.vibrate) navigator.vibrate(10);});
-setFabState();
+function triggerExplosion(point){ explosionPoint={...point}; explosionUntil=performance.now()+2600; explosionColorBoost=1; if(navigator.vibrate) navigator.vibrate([10,40,10]); }
 
-// ------- input (cursor/touch) -------
-const point={x:innerWidth/2,y:innerHeight/2,active:false};
-let longPressTimer=null; let panelHidden=true; let startY=0; let panelStart=0;
+addEventListener('pointerdown',e=>{touches.set(e.pointerId,{x:e.clientX,y:e.clientY,t:performance.now()}); checkTwoFingerHold(); hideHintSoon();});
+addEventListener('pointermove',e=>{if(touches.has(e.pointerId)){ const t=touches.get(e.pointerId); t.x=e.clientX; t.y=e.clientY; }});
+addEventListener('pointerup',e=>{
+  const wasTwo=touches.size===2; const pts=[...touches.values()];
+  touches.delete(e.pointerId);
+  if(wasTwo && explosionArmed){ // only when two-finger and held >=10s
+    const mid=centroid(pts); triggerExplosion(mid);
+  }
+  checkTwoFingerHold();
+});
+addEventListener('pointercancel',e=>{touches.delete(e.pointerId); checkTwoFingerHold();});
 
-function activateAt(x,y){point.x=x; point.y=y; point.active=true;}
-
-addEventListener('pointerdown',e=>{activateAt(e.clientX,e.clientY); if(params.pinPoint) return; clearTimeout(longPressTimer); longPressTimer=setTimeout(()=>{$('pinPoint').checked=true; params.pinPoint=true; if(navigator.vibrate) navigator.vibrate(15);},500)});
-addEventListener('pointermove',e=>{if(point.active || params.gatherAll){activateAt(e.clientX,e.clientY)}});
-addEventListener('pointerup',()=>{clearTimeout(longPressTimer); if(!params.pinPoint){point.active=false}});
-addEventListener('pointerleave',()=>{if(!params.pinPoint){point.active=false}});
-
-// Bottom sheet drag
-const panel=$('panel'); const handle=$('handle');
-function setPanel(hidden){panelHidden=hidden; panel.style.display=hidden?'none':'block'; $('topbar').style.display=hidden && isMobile ? 'none':'flex';}
-setPanel(isMobile? true:false);
-handle.addEventListener('pointerdown',e=>{startY=e.clientY; panelStart=panel.getBoundingClientRect().top; handle.setPointerCapture(e.pointerId)});
-handle.addEventListener('pointermove',e=>{if(!handle.hasPointerCapture(e.pointerId)) return; const dy=e.clientY-startY; const r=panel.getBoundingClientRect(); const newTop=Math.min(Math.max(panelStart+dy, innerHeight-80), innerHeight- Math.min(380, innerHeight*0.6)); panel.style.top=newTop+'px'; panel.style.bottom='auto';});
-handle.addEventListener('pointerup',e=>{handle.releasePointerCapture(e.pointerId); const r=panel.getBoundingClientRect(); if(r.top>innerHeight-140){ setPanel(true);} else { panel.style.top=''; panel.style.bottom='12px'; }});
-
-addEventListener('keydown',e=>{if(e.key==='h'||e.key==='H'){setPanel(panelHidden?false:true)} if(e.key==='r'||e.key==='R'){seed=Math.random()*1000}});
-addEventListener('dblclick',()=>setPanel(panelHidden?false:true));
-
-// ------- auto performance scaling -------
-let fpsSamples=[]; const targetFPS = 58; const windowSize=30; let lastTime=performance.now();
-function trackFPS(){const now=performance.now(); const dt=now-lastTime; lastTime=now; const fps=1000/dt; fpsSamples.push(fps); if(fpsSamples.length>windowSize) fpsSamples.shift(); const avg=fpsSamples.reduce((a,b)=>a+b,0)/fpsSamples.length; return avg;}
-function autoscale(avg){ if(fpsSamples.length<windowSize) return; if(avg<targetFPS-10 && params.count>1200){ params.count=Math.floor(params.count*0.85); $('count').value=params.count; $('countOut').textContent=params.count; rebuildParticles(); }
-  else if(avg>targetFPS && params.count<16000 && !isMobile){ params.count+=400; $('count').value=params.count; $('countOut').textContent=params.count; rebuildParticles(); } }
-
-// ------- drawing -------
-function clearCanvas(prime=false){ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.fillStyle='rgba(8,12,18,1)';ctx.fillRect(0,0,innerWidth,innerHeight);ctx.restore();if(prime){const g=ctx.createRadialGradient(innerWidth/2,innerHeight/2,0,innerWidth/2,innerHeight/2,Math.max(innerWidth,innerHeight)*0.8);g.addColorStop(0,'rgba(15,20,30,0)');g.addColorStop(1,'rgba(0,0,0,0.35)');ctx.fillStyle=g;ctx.fillRect(0,0,innerWidth,innerHeight);}}
-
-function loop(){requestAnimationFrame(loop); if(params.paused)return; frame++;
-  const avg=trackFPS(); autoscale(avg);
+// ---------- drawing ----------
+function loop(){ requestAnimationFrame(loop); frame++;
   ctx.globalCompositeOperation='source-over'; ctx.fillStyle='rgba(11,15,20,0.06)'; ctx.fillRect(0,0,innerWidth,innerHeight);
+
+  // subtle focus glow at centroid when any touches
+  const pts=[...touches.values()]; if(pts.length>0){ const c=centroid(pts); const r=Math.min(innerWidth,innerHeight)*0.08; const g=ctx.createRadialGradient(c.x,c.y, r*0.2, c.x,c.y, r);
+    g.addColorStop(0,'rgba(120,231,255,0.10)'); g.addColorStop(1,'rgba(167,139,250,0.02)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(c.x,c.y,r,0,TAU); ctx.fill(); }
+
   ctx.globalCompositeOperation='lighter'; ctx.lineCap='round'; ctx.lineWidth=params.thick;
-  const hueBase=params.hue;
+  const hueBase=params.hue; const now=performance.now();
   for(let i=0;i<particles.length;i++){
     const p=particles[i]; const x0=p.x,y0=p.y; p.step();
     ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(p.x,p.y);
-    let dx=(point.x||0)-p.x, dy=(point.y||0)-p.y; const d=Math.hypot(dx,dy)||1;
-    const angleHue=((Math.atan2(dy,dx)*RAD)+360)%360; const baseHue=(hueBase+(i*0.03+frame*0.1))%360;
-    const mix = point.active? (params.gatherAll? 1 : clamp(Math.exp(-d/220),0,1)) : 0;
-    const h=baseHue*(1-mix) + angleHue*mix; const sat=80, light=60, alpha= params.gatherAll? 0.7 : 0.55;
-    ctx.strokeStyle=hsla(h, sat, light, alpha); ctx.stroke();
+
+    // color logic
+    let h=(hueBase+(i*0.03+frame*0.08))%360; let s=80, l=60, a=0.55;
+    if(touches.size>=3){ // color by nearest touch angle
+      const pts=[...touches.values()]; let nearest=pts[0]; let best=Infinity; for(const t of pts){ const d=(t.x-p.x)**2+(t.y-p.y)**2; if(d<best){best=d; nearest=t;} }
+      const ang=((Math.atan2(nearest.y-p.y, nearest.x-p.x)*RAD)+360)%360; h = (h*0.5 + ang*0.5)%360; s=85; a=0.6;
+    } else if(touches.size===2){ h=(h+20)%360; s=90; a=0.65; }
+
+    // explosion color boost
+    if(now<explosionUntil){ s=100; l=55; a=0.7; }
+
+    ctx.strokeStyle=hsla(h,s,l,a); ctx.stroke();
   }
 }
 
-clearCanvas(true); rebuildParticles(); loop();
+// hint fade
+const hint=document.getElementById('hint');
+let hintTimer=setTimeout(()=>hint.classList.add('hidden'), 5500);
+function hideHintSoon(){ clearTimeout(hintTimer); hintTimer=setTimeout(()=>hint.classList.add('hidden'), 1800); }
+
+// start
+loop();
 </script>
 </body>
 </html>
