@@ -3,61 +3,72 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Flow Field — Touch Portal</title>
+  <title>Flow Field — Touch Portal (Mobile-First)</title>
   <meta name="theme-color" content="#0b0f14" />
   <style>
     :root{
-      --bg:#080c12; --panel:#0d1421cc; --muted:#9aa4b2; --accent:#78e7ff; --accent2:#a78bfa;
-      --ring:#2f4b7d; --text:#e8eef5; --soft:#d3e1ff;
+      --bg:#070b11; --panel:#0d1421cc; --muted:#a3adbb; --accent:#78e7ff; --accent2:#a78bfa; --text:#e8eef5; --soft:#d3e1ff;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0;background:radial-gradient(1200px 900px at 70% 10%, #0d1320 0%, #070b11 70%);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial}
+    body{margin:0;background:radial-gradient(1200px 900px at 70% 10%, #0d1320 0%, #070b11 70%);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial;overscroll-behavior:none;touch-action:manipulation}
     #c{position:fixed;inset:0;display:block;touch-action:none}
     #grain{position:fixed;inset:0;pointer-events:none;opacity:.07;mix-blend-mode:overlay}
 
-    /* --- Top bar --- */
-    .topbar{position:fixed;inset:12px 12px auto 12px;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--panel);border:1px solid #1c2736;backdrop-filter:blur(8px);box-shadow:0 12px 30px rgba(0,0,0,.35)}
+    /* Safe areas for iOS */
+    .safe-bottom{padding-bottom:calc(12px + env(safe-area-inset-bottom));}
+    .safe-top{padding-top:calc(12px + env(safe-area-inset-top));}
+
+    /* --- Top bar (auto hidden on mobile) --- */
+    .topbar{position:fixed;left:12px;right:12px;top:12px;display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:16px;background:var(--panel);border:1px solid #1c2736;backdrop-filter:blur(8px);box-shadow:0 12px 30px rgba(0,0,0,.35)}
     .logo{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.2px}
-    .dot{width:12px;height:12px;border-radius:50%;background:conic-gradient(from 0deg, #69eafb, #8ef5b6, #e6ff7a, #ffb36b, #ff74a0, #a78bfa, #69eafb);box-shadow:0 0 20px #69eafb}
+    .dot{width:14px;height:14px;border-radius:50%;background:conic-gradient(from 0deg, #69eafb, #8ef5b6, #e6ff7a, #ffb36b, #ff74a0, #a78bfa, #69eafb);box-shadow:0 0 20px #69eafb}
     .topbar .spacer{flex:1}
-    .btn{cursor:pointer;user-select:none;border:1px solid #203044;background:#0b1220;color:var(--soft);border-radius:12px;padding:8px 12px;font-weight:700;display:inline-flex;align-items:center;gap:8px;transition:transform .04s ease, background .2s ease}
-    .btn:hover{background:#0d1729}
+    .btn{cursor:pointer;user-select:none;border:1px solid #203044;background:#0b1220;color:var(--soft);border-radius:14px;padding:12px 14px;font-weight:800;display:inline-flex;align-items:center;gap:8px;transition:transform .04s ease, background .2s ease}
     .btn:active{transform:translateY(1px)}
 
-    /* --- Side panel (desktop), bottom sheet (mobile) --- */
-    .panel{position:fixed;right:12px;top:64px;max-width:360px;width:min(92vw,360px);background:var(--panel);border:1px solid #1c2736;border-radius:18px;padding:12px 14px;backdrop-filter:blur(8px);box-shadow:0 10px 30px rgba(0,0,0,.35)}
-    @media (max-width: 820px){
-      .panel{left:12px;right:12px;bottom:12px;top:auto;width:auto;max-width:none}
-    }
-    .row{display:grid;grid-template-columns:140px 1fr 60px;align-items:center;gap:10px;margin:10px 0}
-    .row label{font-size:12px;color:var(--muted)}
-    .row input[type=range]{width:100%}
-    .row output{text-align:right;font-variant-numeric:tabular-nums;color:#cfe7ff}
-    .toggle{display:flex;align-items:center;gap:10px;margin-top:6px}
-    .toggle input{transform:scale(1.15)}
-    .pill{display:inline-flex;gap:6px;flex-wrap:wrap}
-    .pill .btn{padding:6px 10px;border-radius:999px}
+    /* --- Bottom sheet panel (mobile-first) --- */
+    .panel{position:fixed;left:12px;right:12px;bottom:12px;max-width:680px;margin:0 auto;background:var(--panel);border:1px solid #1c2736;border-radius:18px;padding:10px 14px 14px;backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.4)}
+    .panel.drag-handle{padding-top:6px}
+    .handle{width:52px;height:5px;border-radius:999px;background:#263142;margin:6px auto 8px;opacity:.9}
+    .row{display:grid;grid-template-columns:1fr 2fr 70px;align-items:center;gap:12px;margin:12px 0}
+    .row label{font-size:14px;color:var(--muted)}
+    .row input[type=range]{width:100%;height:40px}
+    .row output{text-align:right;font-variant-numeric:tabular-nums;color:#cfe7ff;font-size:14px}
+    .toggle{display:flex;align-items:center;gap:12px;margin-top:4px}
+    .toggle input{transform:scale(1.25)}
+    .pill{display:flex;gap:8px;flex-wrap:wrap}
+    .pill .btn{padding:10px 14px;border-radius:999px}
 
     .hint{font-size:12px;color:var(--muted);margin-top:6px}
     .footer{position:fixed;left:12px;bottom:10px;color:#7b8799;font-size:12px;opacity:.9}
 
-    .kbd{padding:.1em .4em;border:1px solid #2b3a4f;border-bottom-width:2px;border-radius:6px;background:#0b1220;color:#c6d4e3}
+    /* --- Big thumb buttons --- */
+    .fab{position:fixed;right:14px;bottom:calc(86px + env(safe-area-inset-bottom));border-radius:16px;padding:14px 16px;font-size:16px;font-weight:900;background:#0b1220;border:1px solid #203044;color:var(--soft);box-shadow:0 12px 28px rgba(0,0,0,.35);touch-action:manipulation}
+    .fab:active{transform:translateY(1px)}
+
+    @media (min-width: 821px){
+      .panel{right:12px;left:auto;top:70px;bottom:auto;width:min(92vw,360px)}
+      .fab{bottom:auto;top:90px}
+    }
   </style>
 </head>
 <body>
   <canvas id="c"></canvas>
   <canvas id="grain"></canvas>
 
-  <div class="topbar">
+  <div class="topbar safe-top" id="topbar">
     <div class="logo"><span class="dot"></span>Flow Field • Touch Portal</div>
     <div class="spacer"></div>
     <button class="btn" id="btnFull">Полный экран</button>
     <button class="btn" id="btnSave">PNG</button>
   </div>
 
-  <div class="panel" id="panel">
-    <div class="row"><label>Частиц</label><input id="count" type="range" min="500" max="12000" step="100"><output id="countOut"></output></div>
+  <button class="fab" id="fabGather">Собрать всё</button>
+
+  <div class="panel safe-bottom drag-handle" id="panel">
+    <div class="handle" id="handle"></div>
+    <div class="row"><label>Частиц</label><input id="count" type="range" min="500" max="16000" step="100"><output id="countOut"></output></div>
     <div class="row"><label>Скорость</label><input id="speed" type="range" min="0.1" max="6" step="0.1"><output id="speedOut"></output></div>
     <div class="row"><label>Толщина</label><input id="thick" type="range" min="0.2" max="3.5" step="0.1"><output id="thickOut"></output></div>
     <div class="row"><label>Масштаб поля</label><input id="scale" type="range" min="100" max="1200" step="10"><output id="scaleOut"></output></div>
@@ -66,11 +77,11 @@
 
     <div class="toggle">
       <input type="checkbox" id="gatherAll">
-      <label for="gatherAll">Собирать ВСЕ линии к точке касания/курсора</label>
+      <label for="gatherAll">Собирать ВСЕ линии к точке</label>
     </div>
     <div class="toggle">
       <input type="checkbox" id="pinPoint">
-      <label for="pinPoint">Закрепить точку сбора (долгое касание тоже закрепляет)</label>
+      <label for="pinPoint">Закрепить точку (долгое касание тоже пинает)</label>
     </div>
 
     <div class="pill" style="margin-top:8px">
@@ -80,10 +91,10 @@
       <button class="btn" data-preset="dust">Пыльца</button>
     </div>
 
-    <div class="hint">Подсказки: двойной тап — скрыть/показать панель. Удерживай палец — точка сбора. <span class="kbd">R</span> — новое поле, <span class="kbd">H</span> — скрыть UI.</div>
+    <div class="hint">Жесты: свайпни панель вниз/вверх, тап — точка, удержание 0.5с — закрепить, двойной тап — скрыть/показать UI. <b>Совет:</b> на телефоне панель стартует скрытой.</div>
   </div>
 
-  <div class="footer">© Flow Field • мобильные жесты, пресеты и режим «собрать всё»</div>
+  <div class="footer">© Flow Field • оптимизировано для телефона • авто-настройка производительности</div>
 
 <script>
 // ------- utils -------
@@ -111,31 +122,25 @@ function drawGrain(){const img=gctx.createImageData(grainCanvas.width,grainCanva
 // ------- simulation -------
 const noise=new SimplexNoise();
 let particles=[];
-const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-const defaultCount = isMobile? 2200 : 4000;
-const params={count:defaultCount,speed:2.2,thick:0.9,scale:460,hue:210,gather:1.2,gatherAll:false,pinPoint:false,paused:false};
+const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+const defaultCount = isMobile? 2800 : 5000;
+const params={count:defaultCount,speed:2.2,thick:1.1,scale:480,hue:210,gather:1.3,gatherAll:false,pinPoint:false,paused:false};
 let frame=0,seed=Math.random()*1000;
 
-class Particle{constructor(){this.reset(true);}reset(randomPos=false){this.x=randomPos?rand(0,innerWidth):innerWidth/2;this.y=randomPos?rand(0,innerHeight):innerHeight/2;this.vx=0;this.vy=0;this.life=rand(100,400);this.age=0;this.h=rand(0,360);}step(){this.age++;if(this.age>this.life)this.reset(true);
+class Particle{constructor(){this.reset(true);}reset(randomPos=false){this.x=randomPos?rand(0,innerWidth):innerWidth/2;this.y=randomPos?rand(0,innerHeight):innerHeight/2;this.vx=0;this.vy=0;this.life=rand(120,420);this.age=0;this.h=rand(0,360);}step(){this.age++;if(this.age>this.life)this.reset(true);
   const n=noise.noise2D((this.x+seed)/params.scale,(this.y-seed)/params.scale);
   const a=n*Math.PI*2 + frame*0.002;
-  let ax=Math.cos(a)*0.15, ay=Math.sin(a)*0.15;
+  let ax=Math.cos(a)*0.16, ay=Math.sin(a)*0.16;
 
-  // attraction logic
   const target = point.active? point : null;
   if(target){
-    let dx=target.x-this.x, dy=target.y-this.y; const d2=dx*dx+dy*dy; const d=Math.sqrt(d2)||1;
-    let f = 0;
-    if(params.gatherAll){ // strong pull for everyone
-      f = params.gather * 0.9;
-    } else { // local pull with falloff
-      const radius = 160; let inf = 1 - Math.min(1, d / radius); inf = Math.pow(inf, 2.2); f = params.gather * 1.2 * inf;
-    }
+    let dx=target.x-this.x, dy=target.y-this.y; const d=Math.hypot(dx,dy)||1;
+    let f = params.gatherAll? params.gather*0.9 : params.gather*1.25 * Math.pow(1-Math.min(1,d/170), 2.2);
     ax += (dx/d) * f; ay += (dy/d) * f;
   }
 
-  this.vx = (this.vx + ax) * 0.9; this.vy = (this.vy + ay) * 0.9;
-  const spd = params.speed * 0.8; this.x += this.vx*spd; this.y += this.vy*spd;
+  this.vx = (this.vx + ax) * 0.90; this.vy = (this.vy + ay) * 0.90;
+  const spd = params.speed * 0.82; this.x += this.vx*spd; this.y += this.vy*spd;
   if(this.x<0)this.x+=innerWidth; if(this.x>innerWidth)this.x-=innerWidth; if(this.y<0)this.y+=innerHeight; if(this.y>innerHeight)this.y-=innerHeight;}}
 
 function rebuildParticles(){const target=params.count|0; if(target>particles.length){for(let i=particles.length;i<target;i++)particles.push(new Particle());}else if(target<particles.length){particles.length=target;}}
@@ -144,17 +149,17 @@ function rebuildParticles(){const target=params.count|0; if(target>particles.len
 const $=id=>document.getElementById(id);
 const ranges=[["count","countOut",v=>v],["speed","speedOut",v=>(+v).toFixed(1)],["thick","thickOut",v=>(+v).toFixed(1)],["scale","scaleOut",v=>v],["hue","hueOut",v=>`${v}°`],["gather","gatherOut",v=>(+v).toFixed(2)]];
 for(const [k,out,fmt] of ranges){const el=$(k), eo=$(out); el.value=params[k]; eo.textContent=fmt(params[k]); el.addEventListener('input',()=>{params[k]=parseFloat(el.value); eo.textContent=fmt(el.value); if(k==='count') rebuildParticles();});}
-$('gatherAll').checked=params.gatherAll; $('gatherAll').addEventListener('change',e=>params.gatherAll=e.target.checked);
+$('gatherAll').checked=params.gatherAll; $('gatherAll').addEventListener('change',e=>{params.gatherAll=e.target.checked; setFabState()});
 $('pinPoint').checked=params.pinPoint; $('pinPoint').addEventListener('change',e=>{params.pinPoint=e.target.checked; if(!params.pinPoint) point.active=false});
 
 // Presets
 for(const b of document.querySelectorAll('[data-preset]')){
   b.addEventListener('click',()=>{
     const p=b.getAttribute('data-preset');
-    if(p==='calm'){params.speed=1.6; params.thick=0.7; params.scale=520; params.hue=210; params.gather=0.9}
-    if(p==='neon'){params.speed=2.6; params.thick=1.2; params.scale=360; params.hue=300; params.gather=1.6}
-    if(p==='storm'){params.speed=3.6; params.thick=1.4; params.scale=280; params.hue=40;  params.gather=2.2}
-    if(p==='dust'){params.speed=1.0; params.thick=0.5; params.scale=700; params.hue=150; params.gather=0.6}
+    if(p==='calm'){params.speed=1.4; params.thick=0.9; params.scale=540; params.hue=210; params.gather=1.0}
+    if(p==='neon'){params.speed=2.6; params.thick=1.4; params.scale=360; params.hue=300; params.gather=1.8}
+    if(p==='storm'){params.speed=3.6; params.thick=1.5; params.scale=280; params.hue=40;  params.gather=2.2}
+    if(p==='dust'){params.speed=0.9; params.thick=0.7; params.scale=700; params.hue=150; params.gather=0.7}
     for(const [k,out,fmt] of ranges){$(k).value=params[k]; $(out).textContent=fmt(params[k]);}
   })
 }
@@ -163,38 +168,55 @@ for(const b of document.querySelectorAll('[data-preset]')){
 $('btnSave').onclick=()=>{const a=document.createElement('a'); a.download='flow-field.png'; a.href=canvas.toDataURL('image/png'); a.click();};
 $('btnFull').onclick=()=>{if(!document.fullscreenElement){document.documentElement.requestFullscreen().catch(()=>{});} else {document.exitFullscreen();}};
 
+// Thumb-friendly FAB
+const fab=$('fabGather');
+function setFabState(){fab.textContent = params.gatherAll? 'Расслабить' : 'Собрать всё';}
+fab.addEventListener('click',()=>{params.gatherAll=!params.gatherAll; $('gatherAll').checked=params.gatherAll; setFabState(); if(navigator.vibrate) navigator.vibrate(10);});
+setFabState();
+
 // ------- input (cursor/touch) -------
 const point={x:innerWidth/2,y:innerHeight/2,active:false};
-let longPressTimer=null; let panelHidden=false; let lastTap=0;
+let longPressTimer=null; let panelHidden=true; let startY=0; let panelStart=0;
 
 function activateAt(x,y){point.x=x; point.y=y; point.active=true;}
 
-addEventListener('pointerdown',e=>{activateAt(e.clientX,e.clientY); if(params.pinPoint) return; clearTimeout(longPressTimer); longPressTimer=setTimeout(()=>{$('pinPoint').checked=true; params.pinPoint=true;},500)});
+addEventListener('pointerdown',e=>{activateAt(e.clientX,e.clientY); if(params.pinPoint) return; clearTimeout(longPressTimer); longPressTimer=setTimeout(()=>{$('pinPoint').checked=true; params.pinPoint=true; if(navigator.vibrate) navigator.vibrate(15);},500)});
 addEventListener('pointermove',e=>{if(point.active || params.gatherAll){activateAt(e.clientX,e.clientY)}});
 addEventListener('pointerup',()=>{clearTimeout(longPressTimer); if(!params.pinPoint){point.active=false}});
 addEventListener('pointerleave',()=>{if(!params.pinPoint){point.active=false}});
 
-addEventListener('keydown',e=>{if(e.key==='h'||e.key==='H'){togglePanel()} if(e.key==='r'||e.key==='R'){seed=Math.random()*1000}});
-addEventListener('dblclick',togglePanel); addEventListener('doubletap',togglePanel);
-function togglePanel(){panelHidden=!panelHidden; const p=$('panel'); p.style.display=panelHidden?'none':'block';}
+// Bottom sheet drag
+const panel=$('panel'); const handle=$('handle');
+function setPanel(hidden){panelHidden=hidden; panel.style.display=hidden?'none':'block'; $('topbar').style.display=hidden && isMobile ? 'none':'flex';}
+setPanel(isMobile? true:false);
+handle.addEventListener('pointerdown',e=>{startY=e.clientY; panelStart=panel.getBoundingClientRect().top; handle.setPointerCapture(e.pointerId)});
+handle.addEventListener('pointermove',e=>{if(!handle.hasPointerCapture(e.pointerId)) return; const dy=e.clientY-startY; const r=panel.getBoundingClientRect(); const newTop=Math.min(Math.max(panelStart+dy, innerHeight-80), innerHeight- Math.min(380, innerHeight*0.6)); panel.style.top=newTop+'px'; panel.style.bottom='auto';});
+handle.addEventListener('pointerup',e=>{handle.releasePointerCapture(e.pointerId); const r=panel.getBoundingClientRect(); if(r.top>innerHeight-140){ setPanel(true);} else { panel.style.top=''; panel.style.bottom='12px'; }});
+
+addEventListener('keydown',e=>{if(e.key==='h'||e.key==='H'){setPanel(panelHidden?false:true)} if(e.key==='r'||e.key==='R'){seed=Math.random()*1000}});
+addEventListener('dblclick',()=>setPanel(panelHidden?false:true));
+
+// ------- auto performance scaling -------
+let fpsSamples=[]; const targetFPS = 58; const windowSize=30; let lastTime=performance.now();
+function trackFPS(){const now=performance.now(); const dt=now-lastTime; lastTime=now; const fps=1000/dt; fpsSamples.push(fps); if(fpsSamples.length>windowSize) fpsSamples.shift(); const avg=fpsSamples.reduce((a,b)=>a+b,0)/fpsSamples.length; return avg;}
+function autoscale(avg){ if(fpsSamples.length<windowSize) return; if(avg<targetFPS-10 && params.count>1200){ params.count=Math.floor(params.count*0.85); $('count').value=params.count; $('countOut').textContent=params.count; rebuildParticles(); }
+  else if(avg>targetFPS && params.count<16000 && !isMobile){ params.count+=400; $('count').value=params.count; $('countOut').textContent=params.count; rebuildParticles(); } }
 
 // ------- drawing -------
 function clearCanvas(prime=false){ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='source-over';ctx.fillStyle='rgba(8,12,18,1)';ctx.fillRect(0,0,innerWidth,innerHeight);ctx.restore();if(prime){const g=ctx.createRadialGradient(innerWidth/2,innerHeight/2,0,innerWidth/2,innerHeight/2,Math.max(innerWidth,innerHeight)*0.8);g.addColorStop(0,'rgba(15,20,30,0)');g.addColorStop(1,'rgba(0,0,0,0.35)');ctx.fillStyle=g;ctx.fillRect(0,0,innerWidth,innerHeight);}}
 
 function loop(){requestAnimationFrame(loop); if(params.paused)return; frame++;
-  // subtle motion trail
+  const avg=trackFPS(); autoscale(avg);
   ctx.globalCompositeOperation='source-over'; ctx.fillStyle='rgba(11,15,20,0.06)'; ctx.fillRect(0,0,innerWidth,innerHeight);
   ctx.globalCompositeOperation='lighter'; ctx.lineCap='round'; ctx.lineWidth=params.thick;
   const hueBase=params.hue;
   for(let i=0;i<particles.length;i++){
     const p=particles[i]; const x0=p.x,y0=p.y; p.step();
     ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(p.x,p.y);
-
-    // color: angle to point -> rainbow near target, base hue otherwise
     let dx=(point.x||0)-p.x, dy=(point.y||0)-p.y; const d=Math.hypot(dx,dy)||1;
     const angleHue=((Math.atan2(dy,dx)*RAD)+360)%360; const baseHue=(hueBase+(i*0.03+frame*0.1))%360;
     const mix = point.active? (params.gatherAll? 1 : clamp(Math.exp(-d/220),0,1)) : 0;
-    const h=baseHue*(1-mix) + angleHue*mix; const sat=80, light=60, alpha= params.gatherAll? 0.65 : 0.55;
+    const h=baseHue*(1-mix) + angleHue*mix; const sat=80, light=60, alpha= params.gatherAll? 0.7 : 0.55;
     ctx.strokeStyle=hsla(h, sat, light, alpha); ctx.stroke();
   }
 }
